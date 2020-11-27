@@ -422,8 +422,8 @@ static int direction(int *d, char *name) {
 
 static void usage(void) {
   (void)fprintf(stderr,
-                "%s %s\n"
+                "%s %s (using %s mode process restriction)\n"
                 "usage: %s <in|out|inout|none> <cmd> <...>\n",
-                __progname, HEXLOG_VERSION, __progname);
+                __progname, HEXLOG_VERSION, RESTRICT_PROCESS, __progname);
   exit(EXIT_FAILURE);
 }
