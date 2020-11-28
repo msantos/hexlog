@@ -62,6 +62,9 @@ SIGUSR1
 SIGUSR2
 : enable/disable hexdump of stdout
 
+SIGHUP
+: reset hexdump stdio to initial value
+
 # ALTERNATIVES
 
 ## bash

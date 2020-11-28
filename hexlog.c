@@ -29,7 +29,7 @@
 #include "restrict_process.h"
 #include "waitfor.h"
 
-#define HEXLOG_VERSION "0.1.0"
+#define HEXLOG_VERSION "0.2.0"
 
 #define COUNT(_array) (sizeof(_array) / sizeof(_array[0]))
 
@@ -47,20 +47,24 @@ typedef struct {
   size_t off;
 } hexlog_t;
 
+typedef struct {
+  int dir_initial;
+  int dir_cur;
+} state_t;
+
 extern const char *__progname;
 
 int sigfd;
-int dir;
 
-static int direction(int *d, char *name);
-static int relay(hexlog_t *h);
-static int event_loop(hexlog_t h[2], int fdsig);
+static int direction(state_t *s, char *name);
+static int relay(state_t *s, hexlog_t *h);
+static int event_loop(state_t *s, hexlog_t h[2], int fdsig);
 static ssize_t hexdump(const char *label, const void *data, size_t size);
 static int hexlog_write(int fd, void *buf, size_t size);
 
 static int signal_init(void (*handler)(int));
 void sighandler(int sig);
-static int sigread(int fd);
+static int sigread(state_t *s, int fd);
 
 static void usage(void);
 
@@ -78,6 +82,7 @@ int main(int argc, char *argv[]) {
   int rv;
   int status;
 
+  state_t s;
   hexlog_t h[2] = {0};
 
   if (restrict_process_init() < 0)
@@ -89,7 +94,7 @@ int main(int argc, char *argv[]) {
   if (argc < 3)
     usage();
 
-  if (direction(&dir, argv[1]) < 0)
+  if (direction(&s, argv[1]) < 0)
     usage();
 
   if (socketpair(AF_UNIX, SOCK_STREAM, 0, fdsig) < 0)
@@ -161,7 +166,7 @@ int main(int argc, char *argv[]) {
   if (h[1].label == NULL)
     h[1].label = " (1)";
 
-  rv = event_loop(h, fdsig[1]);
+  rv = event_loop(&s, h, fdsig[1]);
   oerrno = errno;
 
   if (h[0].off > 0)
@@ -196,6 +201,9 @@ static int signal_init(void (*handler)(int)) {
   if (sigaction(SIGCHLD, &act, NULL) < 0)
     return -1;
 
+  if (sigaction(SIGHUP, &act, NULL) < 0)
+    return -1;
+
   if (sigaction(SIGUSR1, &act, NULL) < 0)
     return -1;
 
@@ -205,7 +213,7 @@ static int signal_init(void (*handler)(int)) {
   return 0;
 }
 
-static int event_loop(hexlog_t h[2], int fdsig) {
+static int event_loop(state_t *s, hexlog_t h[2], int fdsig) {
   struct pollfd rfd[4] = {0};
 
   rfd[0].fd = h[0].fdin; /* read: parent: STDIN_FILENO */
@@ -235,7 +243,7 @@ static int event_loop(hexlog_t h[2], int fdsig) {
       continue;
     }
     if (rfd[0].revents & (POLLIN | POLLERR | POLLHUP | POLLNVAL)) {
-      switch (relay(&h[0])) {
+      switch (relay(s, &h[0])) {
       case 0:
         if (close(h[0].fdout) < 0)
           return -1;
@@ -252,7 +260,7 @@ static int event_loop(hexlog_t h[2], int fdsig) {
     }
 
     if (rfd[1].revents & (POLLIN | POLLERR | POLLHUP | POLLNVAL)) {
-      switch (relay(&h[1])) {
+      switch (relay(s, &h[1])) {
       case 0:
         if (close(h[1].fdout) < 0)
           return -1;
@@ -268,7 +276,7 @@ static int event_loop(hexlog_t h[2], int fdsig) {
     }
 
     if (rfd[2].revents & (POLLIN | POLLERR | POLLHUP | POLLNVAL))
-      switch (sigread(fdsig)) {
+      switch (sigread(s, fdsig)) {
       case 0:
         return 0;
       case -1:
@@ -279,7 +287,7 @@ static int event_loop(hexlog_t h[2], int fdsig) {
   }
 }
 
-static int sigread(int fd) {
+static int sigread(state_t *s, int fd) {
   ssize_t n;
   int sig;
 
@@ -291,19 +299,19 @@ static int sigread(int fd) {
   case SIGCHLD:
     return 0;
   case SIGHUP:
-    dir = 0;
+    s->dir_cur = s->dir_initial;
     break;
   case SIGUSR1:
-    if (dir & IN)
-      dir &= ~IN;
+    if (s->dir_cur & IN)
+      s->dir_cur &= ~IN;
     else
-      dir |= IN;
+      s->dir_cur |= IN;
     break;
   case SIGUSR2:
-    if (dir & OUT)
-      dir &= ~OUT;
+    if (s->dir_cur & OUT)
+      s->dir_cur &= ~OUT;
     else
-      dir |= OUT;
+      s->dir_cur |= OUT;
     break;
   default:
     break;
@@ -312,7 +320,7 @@ static int sigread(int fd) {
   return 1;
 }
 
-static int relay(hexlog_t *h) {
+static int relay(state_t *s, hexlog_t *h) {
   ssize_t n;
   char buf[4096] = {0};
 
@@ -327,13 +335,13 @@ static int relay(hexlog_t *h) {
 
   switch (h->fdin) {
   case STDIN_FILENO:
-    if (!(dir & IN)) {
+    if (!(s->dir_cur & IN)) {
       h->off = 0;
       return 1;
     }
     break;
   default:
-    if (!(dir & OUT)) {
+    if (!(s->dir_cur & OUT)) {
       h->off = 0;
       return 1;
     }
@@ -405,17 +413,21 @@ static ssize_t hexdump(const char *label, const void *data, size_t size) {
   return 0;
 }
 
-static int direction(int *d, char *name) {
+static int direction(state_t *s, char *name) {
+  int d;
   if (!strcmp(name, "none"))
-    *d = NONE;
+    d = NONE;
   else if (!strcmp(name, "in"))
-    *d = IN;
+    d = IN;
   else if (!strcmp(name, "out"))
-    *d = OUT;
+    d = OUT;
   else if (!strcmp(name, "inout"))
-    *d = IN | OUT;
+    d = IN | OUT;
   else
     return -1;
+
+  s->dir_initial = d;
+  s->dir_cur = d;
 
   return 0;
 }
