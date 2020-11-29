@@ -34,6 +34,7 @@ endif
 
 CFLAGS += -g -Wall -fwrapv -pedantic -pie -fPIE $(HEXLOG_CFLAGS)
 LDFLAGS += $(HEXLOG_LDFLAGS)
+RESTRICT_PROCESS ?= rlimit
 
 all:
 	$(CC) $(CFLAGS) \
