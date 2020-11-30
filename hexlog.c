@@ -139,7 +139,7 @@ int main(int argc, char *argv[]) {
 
     (void)execvp(argv[2], argv + 2);
 
-    exit(111);
+    err(127, "%s", argv[2]);
 
   default:
     break;
