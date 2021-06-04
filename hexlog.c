@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Michael Santos <michael.santos@gmail.com>
+ * Copyright (c) 2020-2021, Michael Santos <michael.santos@gmail.com>
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -17,6 +17,7 @@
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdnoreturn.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -66,7 +67,7 @@ static int signal_init(void (*handler)(int));
 void sighandler(int sig);
 static int sigread(state_t *s, int fd);
 
-static void usage(void);
+static noreturn void usage(void);
 
 void sighandler(int sig) {
   if (write(sigfd, &sig, sizeof(sig)) < 0)
@@ -432,7 +433,7 @@ static int direction(state_t *s, char *name) {
   return 0;
 }
 
-static void usage(void) {
+static noreturn void usage(void) {
   (void)fprintf(stderr,
                 "%s %s (using %s mode process restriction)\n"
                 "usage: %s <in|out|inout|none> <cmd> <...>\n",
