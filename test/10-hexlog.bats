@@ -71,3 +71,11 @@ EOF
     [ "$status" -eq 0 ]
     [ "$output" = "$expect" ]
 }
+
+@test "stdio: process restrictions" {
+    run sh -c "hexlog inout echo test >/dev/null"
+    [ "$status" -eq 0 ]
+
+    run sh -c "hexlog inout echo test >/dev/null </dev/null"
+    [ "$status" -eq 0 ]
+}

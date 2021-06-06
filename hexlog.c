@@ -27,6 +27,10 @@
 
 #include <poll.h>
 
+#ifdef RESTRICT_PROCESS_capsicum
+#include <sys/procdesc.h>
+#endif
+
 #include "restrict_process.h"
 #include "waitfor.h"
 
@@ -59,7 +63,7 @@ int sigfd;
 
 static int direction(state_t *s, char *name);
 static int relay(state_t *s, hexlog_t *h);
-static int event_loop(state_t *s, hexlog_t h[2], int fdsig);
+static int event_loop(state_t *s, hexlog_t h[2], int fdsig, int fdp);
 static ssize_t hexdump(const char *label, const void *data, size_t size);
 static int hexlog_write(int fd, void *buf, size_t size);
 
@@ -81,7 +85,8 @@ int main(int argc, char *argv[]) {
   int fdsig[2];
   int oerrno;
   int rv;
-  int status;
+  int status = 0;
+  int fdp = -1; /* capsicum: process descriptor */
 
   state_t s;
   hexlog_t h[2] = {0};
@@ -112,7 +117,11 @@ int main(int argc, char *argv[]) {
   if (signal_init(sighandler) < 0)
     err(111, "signal_init");
 
+#ifdef RESTRICT_PROCESS_capsicum
+  pid = pdfork(&fdp, PD_CLOEXEC);
+#else
   pid = fork();
+#endif
 
   switch (pid) {
   case -1:
@@ -167,7 +176,7 @@ int main(int argc, char *argv[]) {
   if (h[1].label == NULL)
     h[1].label = " (1)";
 
-  rv = event_loop(&s, h, fdsig[1]);
+  rv = event_loop(&s, h, fdsig[1], fdp);
   oerrno = errno;
 
   if (h[0].off > 0)
@@ -181,8 +190,18 @@ int main(int argc, char *argv[]) {
     err(111, "event_loop");
   }
 
+#ifdef RESTRICT_PROCESS_capsicum
+  /* Since FreeBSD capsicum does not implement pdwait4(2) to get the
+   * child exit status, exit with status 0:
+   *
+   * https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=235871
+   *
+   */
+  exit(0);
+#else
   if (waitfor(&status) < 0)
     err(111, "waitfor");
+#endif
 
   if (WIFEXITED(status))
     exit(WEXITSTATUS(status));
@@ -214,14 +233,16 @@ static int signal_init(void (*handler)(int)) {
   return 0;
 }
 
-static int event_loop(state_t *s, hexlog_t h[2], int fdsig) {
-  struct pollfd rfd[4] = {0};
+static int event_loop(state_t *s, hexlog_t h[2], int fdsig, int fdp) {
+  struct pollfd rfd[5] = {0};
 
   rfd[0].fd = h[0].fdin; /* read: parent: STDIN_FILENO */
   rfd[1].fd = h[1].fdin; /* read: child: STDOUT_FILENO */
   rfd[2].fd = fdsig;     /* read: parent: signal fd */
 
   rfd[3].fd = h[0].fdout; /* write: child STDIN_FILENO */
+
+  rfd[4].fd = fdp; /* POLLHUP: parent: indicate child exit */
 
   rfd[0].events = POLLIN; /* read: parent: STDIN_FILENO */
   rfd[1].events = POLLIN; /* read: child: STDOUT_FILENO */
@@ -276,7 +297,7 @@ static int event_loop(state_t *s, hexlog_t h[2], int fdsig) {
       }
     }
 
-    if (rfd[2].revents & (POLLIN | POLLERR | POLLHUP | POLLNVAL))
+    if (rfd[2].revents & (POLLIN | POLLERR | POLLHUP | POLLNVAL)) {
       switch (sigread(s, fdsig)) {
       case 0:
         return 0;
@@ -285,6 +306,11 @@ static int event_loop(state_t *s, hexlog_t h[2], int fdsig) {
       default:
         break;
       }
+    }
+
+    if (rfd[4].revents & POLLHUP) {
+      return 0;
+    }
   }
 }
 
