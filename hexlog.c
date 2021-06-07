@@ -410,14 +410,14 @@ static int hexlog_write(int fd, void *buf, size_t size) {
 }
 
 static ssize_t hexdump(const char *label, const void *data, size_t size) {
-  char ascii[17];
+  unsigned char ascii[17];
   size_t i, j;
   ascii[16] = '\0';
   for (i = 0; i < size; ++i) {
-    (void)fprintf(stderr, "%02X ", ((unsigned char *)data)[i]);
-    if (((unsigned char *)data)[i] >= ' ' &&
-        ((unsigned char *)data)[i] <= '~') {
-      ascii[i % 16] = ((unsigned char *)data)[i];
+    (void)fprintf(stderr, "%02X ", ((const unsigned char *)data)[i]);
+    if (((const unsigned char *)data)[i] >= ' ' &&
+        ((const unsigned char *)data)[i] <= '~') {
+      ascii[i % 16] = ((const unsigned char *)data)[i];
     } else {
       ascii[i % 16] = '.';
     }
