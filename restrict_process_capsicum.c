@@ -34,12 +34,15 @@ int restrict_process(void) {
   cap_rights_t policy_write;
   cap_rights_t policy_rw;
 
-  (void)cap_rights_init(&policy_read, CAP_READ, CAP_EVENT);
-  (void)cap_rights_init(&policy_write, CAP_WRITE, CAP_EVENT);
-  (void)cap_rights_init(&policy_rw, CAP_READ, CAP_WRITE, CAP_EVENT);
+  if (getrlimit(RLIMIT_NOFILE, &rl) < 0)
+    return -1;
 
   if (cap_enter() != 0)
     return -1;
+
+  (void)cap_rights_init(&policy_read, CAP_READ, CAP_EVENT);
+  (void)cap_rights_init(&policy_write, CAP_WRITE, CAP_EVENT);
+  (void)cap_rights_init(&policy_rw, CAP_READ, CAP_WRITE, CAP_EVENT);
 
   if (cap_rights_limit(STDIN_FILENO, &policy_read) < 0)
     return -1;
@@ -48,9 +51,6 @@ int restrict_process(void) {
     return -1;
 
   if (cap_rights_limit(STDERR_FILENO, &policy_write) < 0)
-    return -1;
-
-  if (getrlimit(RLIMIT_NOFILE, &rl) < 0)
     return -1;
 
   for (fd = STDERR_FILENO + 1; fd < rl.rlim_cur; fd++) {
