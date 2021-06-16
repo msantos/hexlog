@@ -21,6 +21,8 @@ $ echo abc | hexlog inout cat -n
      1  abc
 61 62 63 0A                                       |abc.| (0)
 20 20 20 20 20 31 09 61  62 63 0A                 |     1.abc.| (1)
+
+$ (echo test | HEXLOG_FD_STDIN=4 HEXLOG_FD_STDOUT=5 hexlog inout cat) 4>stdin 5>stdout
 ```
 
 # Build
@@ -49,10 +51,16 @@ None.
 # ENVIRONMENT VARIABLES
 
 HEXLOG_LABEL_STDIN=" (0)"
-: Label attached to hexdump of the stdin stream. 
+: Label attached to hexdump of the stdin stream.
 
 HEXLOG_LABEL_STDOUT=" (1)"
-: Label attached to hexdump of the stdout stream. 
+: Label attached to hexdump of the stdout stream.
+
+HEXLOG_FD_STDIN="2"
+: File descriptor to write hexdump.
+
+HEXLOG_FD_STDOUT="2"
+: File descriptor to write hexdump.
 
 # SIGNALS
 

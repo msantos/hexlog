@@ -47,6 +47,7 @@ enum {
 typedef struct {
   int fdin;
   int fdout;
+  FILE *fdhex;
   char *label;
   char buf[8192]; /* XXX */
   size_t off;
@@ -64,7 +65,8 @@ int sigfd;
 static int direction(state_t *s, char *name);
 static int relay(state_t *s, hexlog_t *h);
 static int event_loop(state_t *s, hexlog_t h[2], int fdsig, int fdp);
-static ssize_t hexdump(const char *label, const void *data, size_t size);
+static ssize_t hexdump(FILE *stream, const char *label, const void *data,
+                       size_t size);
 static int hexlog_write(int fd, void *buf, size_t size);
 
 static int signal_init(void (*handler)(int));
@@ -87,6 +89,7 @@ int main(int argc, char *argv[]) {
   int rv;
   int status = 0;
   int fdp = -1; /* capsicum: process descriptor */
+  char *stream;
 
   state_t s;
   hexlog_t h[2] = {0};
@@ -102,6 +105,22 @@ int main(int argc, char *argv[]) {
 
   if (direction(&s, argv[1]) < 0)
     usage();
+
+  h[0].fdhex = stderr;
+  stream = getenv("HEXLOG_FD_STDIN");
+  if (stream != NULL) {
+    h[0].fdhex = fdopen(atoi(stream), "w");
+    if (h[0].fdhex == NULL)
+      err(111, "fdopen: stdin: %s", stream);
+  }
+
+  h[1].fdhex = stderr;
+  stream = getenv("HEXLOG_FD_STDOUT");
+  if (stream != NULL) {
+    h[1].fdhex = fdopen(atoi(stream), "w");
+    if (h[1].fdhex == NULL)
+      err(111, "fdopen: stdout: %s", stream);
+  }
 
   if (socketpair(AF_UNIX, SOCK_STREAM, 0, fdsig) < 0)
     err(111, "socketpair");
@@ -180,10 +199,10 @@ int main(int argc, char *argv[]) {
   oerrno = errno;
 
   if (h[0].off > 0)
-    (void)hexdump(h[0].label, h[0].buf, h[0].off);
+    (void)hexdump(h[0].fdhex, h[0].label, h[0].buf, h[0].off);
 
   if (h[1].off > 0)
-    (void)hexdump(h[1].label, h[1].buf, h[1].off);
+    (void)hexdump(h[1].fdhex, h[1].label, h[1].buf, h[1].off);
 
   if (rv < 0) {
     errno = oerrno;
@@ -379,7 +398,7 @@ static int relay(state_t *s, hexlog_t *h) {
     size_t len = ((h->off + n) / 16) * 16;
     size_t rem = (h->off + n) % 16;
     (void)memcpy(h->buf + h->off, buf, len);
-    (void)hexdump(h->label, h->buf, len);
+    (void)hexdump(h->fdhex, h->label, h->buf, len);
     if (rem > 0)
       (void)memcpy(h->buf, buf + (len - h->off), rem);
     h->off = rem;
@@ -409,12 +428,13 @@ static int hexlog_write(int fd, void *buf, size_t size) {
   return 0;
 }
 
-static ssize_t hexdump(const char *label, const void *data, size_t size) {
+static ssize_t hexdump(FILE *stream, const char *label, const void *data,
+                       size_t size) {
   unsigned char ascii[17];
   size_t i, j;
   ascii[16] = '\0';
   for (i = 0; i < size; ++i) {
-    (void)fprintf(stderr, "%02X ", ((const unsigned char *)data)[i]);
+    (void)fprintf(stream, "%02X ", ((const unsigned char *)data)[i]);
     if (((const unsigned char *)data)[i] >= ' ' &&
         ((const unsigned char *)data)[i] <= '~') {
       ascii[i % 16] = ((const unsigned char *)data)[i];
@@ -422,18 +442,18 @@ static ssize_t hexdump(const char *label, const void *data, size_t size) {
       ascii[i % 16] = '.';
     }
     if ((i + 1) % 8 == 0 || i + 1 == size) {
-      (void)fprintf(stderr, " ");
+      (void)fprintf(stream, " ");
       if ((i + 1) % 16 == 0) {
-        (void)fprintf(stderr, "|%s|%s\n", ascii, label);
+        (void)fprintf(stream, "|%s|%s\n", ascii, label);
       } else if (i + 1 == size) {
         ascii[(i + 1) % 16] = '\0';
         if ((i + 1) % 16 <= 8) {
-          (void)fprintf(stderr, " ");
+          (void)fprintf(stream, " ");
         }
         for (j = (i + 1) % 16; j < 16; ++j) {
-          (void)fprintf(stderr, "   ");
+          (void)fprintf(stream, "   ");
         }
-        (void)fprintf(stderr, "|%s|%s\n", ascii, label);
+        (void)fprintf(stream, "|%s|%s\n", ascii, label);
       }
     }
   }
