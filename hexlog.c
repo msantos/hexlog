@@ -249,6 +249,9 @@ static int signal_init(void (*handler)(int)) {
   if (sigaction(SIGUSR2, &act, NULL) < 0)
     return -1;
 
+  if (sigaction(SIGINT, &act, NULL) < 0)
+    return -1;
+
   return 0;
 }
 
@@ -342,8 +345,6 @@ static int sigread(state_t *s, int fd) {
     return -1;
 
   switch (sig) {
-  case SIGCHLD:
-    return 0;
   case SIGHUP:
     s->dir_cur = s->dir_initial;
     break;
@@ -360,7 +361,7 @@ static int sigread(state_t *s, int fd) {
       s->dir_cur |= OUT;
     break;
   default:
-    break;
+    return 0;
   }
 
   return 1;
