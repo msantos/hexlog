@@ -54,6 +54,8 @@ typedef struct {
 } hexlog_t;
 
 typedef struct {
+  pid_t pid;
+  int fdp;
   int dir_initial;
   int dir_cur;
 } state_t;
@@ -64,7 +66,7 @@ int sigfd;
 
 static int direction(state_t *s, char *name);
 static int relay(state_t *s, hexlog_t *h);
-static int event_loop(state_t *s, hexlog_t h[2], int fdsig, int fdp);
+static int event_loop(state_t *s, hexlog_t h[2], int fdsig);
 static ssize_t hexdump(FILE *stream, const char *label, const void *data,
                        size_t size);
 static int hexlog_write(int fd, void *buf, size_t size);
@@ -147,6 +149,9 @@ int main(int argc, char *argv[]) {
     err(111, "fork");
 
   case 0:
+    if (setsid() < 0)
+      err(111, "setsid");
+
     if (restrict_process_signal_on_supervisor_exit() < 0)
       err(111, "restrict_process_signal_on_supervisor_exit");
 
@@ -183,6 +188,9 @@ int main(int argc, char *argv[]) {
   if (close(fdout[0]) < 0)
     exit(111);
 
+  s.pid = pid;
+  s.fdp = fdp;
+
   h[0].fdin = STDIN_FILENO;
   h[0].fdout = fdin[1];
   h[0].label = getenv("HEXLOG_LABEL_STDIN");
@@ -195,7 +203,7 @@ int main(int argc, char *argv[]) {
   if (h[1].label == NULL)
     h[1].label = " (1)";
 
-  rv = event_loop(&s, h, fdsig[1], fdp);
+  rv = event_loop(&s, h, fdsig[1]);
   oerrno = errno;
 
   if (h[0].off > 0)
@@ -252,10 +260,13 @@ static int signal_init(void (*handler)(int)) {
   if (sigaction(SIGINT, &act, NULL) < 0)
     return -1;
 
+  if (sigaction(SIGTERM, &act, NULL) < 0)
+    return -1;
+
   return 0;
 }
 
-static int event_loop(state_t *s, hexlog_t h[2], int fdsig, int fdp) {
+static int event_loop(state_t *s, hexlog_t h[2], int fdsig) {
   struct pollfd rfd[5] = {0};
 
   rfd[0].fd = h[0].fdin; /* read: parent: STDIN_FILENO */
@@ -264,7 +275,7 @@ static int event_loop(state_t *s, hexlog_t h[2], int fdsig, int fdp) {
 
   rfd[3].fd = h[0].fdout; /* write: child STDIN_FILENO */
 
-  rfd[4].fd = fdp; /* POLLHUP: parent: indicate child exit */
+  rfd[4].fd = s->fdp; /* POLLHUP: parent: indicate child exit */
 
   rfd[0].events = POLLIN; /* read: parent: STDIN_FILENO */
   rfd[1].events = POLLIN; /* read: child: STDOUT_FILENO */
@@ -360,7 +371,14 @@ static int sigread(state_t *s, int fd) {
     else
       s->dir_cur |= OUT;
     break;
+  case SIGCHLD:
+    return 0;
   default:
+#ifdef RESTRICT_PROCESS_capsicum
+    (void)pdkill(s->fdp, sig);
+#else
+    (void)kill(-s->pid, sig);
+#endif
     return 0;
   }
 

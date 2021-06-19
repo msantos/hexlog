@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, Michael Santos <michael.santos@gmail.com>
+/* Copyright (c) 2020-2021, Michael Santos <michael.santos@gmail.com>
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -181,6 +181,9 @@ int restrict_process(void) {
 
 #ifdef __NR_wait4
       SC_ALLOW(wait4),
+#endif
+#ifdef __NR_kill
+      SC_ALLOW(kill),
 #endif
 
       /* Default deny */
