@@ -56,6 +56,7 @@ typedef struct {
 typedef struct {
   pid_t pid;
   int fdp;
+  int fdsig;
   int dir_initial;
   int dir_cur;
 } state_t;
@@ -66,14 +67,14 @@ int sigfd;
 
 static int direction(state_t *s, char *name);
 static int relay(state_t *s, hexlog_t *h);
-static int event_loop(state_t *s, hexlog_t h[2], int fdsig);
+static int event_loop(state_t *s, hexlog_t h[2]);
 static ssize_t hexdump(FILE *stream, const char *label, const void *data,
                        size_t size);
 static int hexlog_write(int fd, void *buf, size_t size);
 
 static int signal_init(void (*handler)(int));
 void sighandler(int sig);
-static int sigread(state_t *s, int fd);
+static int sigread(state_t *s);
 
 static noreturn void usage(void);
 
@@ -190,6 +191,7 @@ int main(int argc, char *argv[]) {
 
   s.pid = pid;
   s.fdp = fdp;
+  s.fdsig = fdsig[1];
 
   h[0].fdin = STDIN_FILENO;
   h[0].fdout = fdin[1];
@@ -203,7 +205,7 @@ int main(int argc, char *argv[]) {
   if (h[1].label == NULL)
     h[1].label = " (1)";
 
-  rv = event_loop(&s, h, fdsig[1]);
+  rv = event_loop(&s, h);
   oerrno = errno;
 
   if (h[0].off > 0)
@@ -266,12 +268,12 @@ static int signal_init(void (*handler)(int)) {
   return 0;
 }
 
-static int event_loop(state_t *s, hexlog_t h[2], int fdsig) {
+static int event_loop(state_t *s, hexlog_t h[2]) {
   struct pollfd rfd[5] = {0};
 
   rfd[0].fd = h[0].fdin; /* read: parent: STDIN_FILENO */
   rfd[1].fd = h[1].fdin; /* read: child: STDOUT_FILENO */
-  rfd[2].fd = fdsig;     /* read: parent: signal fd */
+  rfd[2].fd = s->fdsig;  /* read: parent: signal fd */
 
   rfd[3].fd = h[0].fdout; /* write: child STDIN_FILENO */
 
@@ -331,7 +333,7 @@ static int event_loop(state_t *s, hexlog_t h[2], int fdsig) {
     }
 
     if (rfd[2].revents & (POLLIN | POLLERR | POLLHUP | POLLNVAL)) {
-      switch (sigread(s, fdsig)) {
+      switch (sigread(s)) {
       case 0:
         return 0;
       case -1:
@@ -347,11 +349,11 @@ static int event_loop(state_t *s, hexlog_t h[2], int fdsig) {
   }
 }
 
-static int sigread(state_t *s, int fd) {
+static int sigread(state_t *s) {
   ssize_t n;
   int sig;
 
-  n = read(fd, &sig, sizeof(sig));
+  n = read(s->fdsig, &sig, sizeof(sig));
   if (n != sizeof(sig))
     return -1;
 
