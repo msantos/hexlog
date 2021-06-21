@@ -63,7 +63,7 @@ typedef struct {
 
 extern const char *__progname;
 
-int sigfd;
+static int sigfd;
 
 static int direction(state_t *s, char *name);
 static int relay(state_t *s, hexlog_t *h);
