@@ -59,6 +59,7 @@ typedef struct {
   int fdsig;
   int dir_initial;
   int dir_cur;
+  int raw;
 } state_t;
 
 extern const char *__progname;
@@ -69,7 +70,7 @@ static int direction(state_t *s, char *name);
 static int relay(state_t *s, hexlog_t *h);
 static int event_loop(state_t *s, hexlog_t h[2]);
 static ssize_t hexdump(FILE *stream, const char *label, const void *data,
-                       size_t size);
+                       size_t size, int raw);
 static int hexlog_write(int fd, void *buf, size_t size);
 
 static int signal_init(void (*handler)(int));
@@ -209,10 +210,10 @@ int main(int argc, char *argv[]) {
   oerrno = errno;
 
   if (h[0].off > 0)
-    (void)hexdump(h[0].fdhex, h[0].label, h[0].buf, h[0].off);
+    (void)hexdump(h[0].fdhex, h[0].label, h[0].buf, h[0].off, s.raw);
 
   if (h[1].off > 0)
-    (void)hexdump(h[1].fdhex, h[1].label, h[1].buf, h[1].off);
+    (void)hexdump(h[1].fdhex, h[1].label, h[1].buf, h[1].off, s.raw);
 
   if (rv < 0) {
     errno = oerrno;
@@ -419,7 +420,7 @@ static int relay(state_t *s, hexlog_t *h) {
     size_t len = ((h->off + n) / 16) * 16;
     size_t rem = (h->off + n) % 16;
     (void)memcpy(h->buf + h->off, buf, len);
-    (void)hexdump(h->fdhex, h->label, h->buf, len);
+    (void)hexdump(h->fdhex, h->label, h->buf, len, s->raw);
     if (rem > 0)
       (void)memcpy(h->buf, buf + (len - h->off), rem);
     h->off = rem;
@@ -450,9 +451,15 @@ static int hexlog_write(int fd, void *buf, size_t size) {
 }
 
 static ssize_t hexdump(FILE *stream, const char *label, const void *data,
-                       size_t size) {
+                       size_t size, int raw) {
   unsigned char ascii[17];
   size_t i, j;
+
+  if (raw) {
+    /* TODO: handle errors, short writes: return value is currently ignored */
+    return fwrite(data, 1, size, stream);
+  }
+
   ascii[16] = '\0';
   for (i = 0; i < size; ++i) {
     (void)fprintf(stream, "%02X ", ((const unsigned char *)data)[i]);
@@ -483,6 +490,12 @@ static ssize_t hexdump(FILE *stream, const char *label, const void *data,
 
 static int direction(state_t *s, char *name) {
   int d;
+
+  if (name[0] == 'r') {
+    s->raw = 1;
+    name++;
+  }
+
   if (!strcmp(name, "none"))
     d = NONE;
   else if (!strcmp(name, "in"))

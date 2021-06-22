@@ -1,14 +1,14 @@
 # SYNOPSIS
 
-hexlog *in|out|inout|none* *cmd* *...*
+hexlog *[r](in|out|inout|none)* *cmd* *...*
 
 # DESCRIPTION
 
 hexlog: hexdump stdin and/or stdout to stderr
 
-hexlog streams a hexdump of the standard I/O of a subprocess to standard
-error. Hexdumps can be enabled or disabled by sending a signal (see
-_SIGNALS_).
+hexlog streams a hexdump (or optionally the raw bytes) of the standard
+I/O of a subprocess to standard error. Hexdumps can be enabled or disabled
+by sending a signal (see _SIGNALS_).
 
 The hexdump code originates from:
 
@@ -23,6 +23,12 @@ $ echo abc | hexlog inout cat -n
 20 20 20 20 20 31 09 61  62 63 0A                 |     1.abc.| (1)
 
 $ (echo test | HEXLOG_FD_STDIN=4 HEXLOG_FD_STDOUT=5 hexlog inout cat) 4>stdin 5>stdout
+
+$ echo abc | hexlog rinout cat -n
+     1  abc
+abc
+     1  abc
+
 ```
 
 # Build
@@ -48,6 +54,23 @@ $ (echo test | HEXLOG_FD_STDIN=4 HEXLOG_FD_STDOUT=5 hexlog inout cat) 4>stdin 5>
 
 None.
 
+# ARGUMENTS
+
+none:
+: do not dump stdio
+
+in
+: dump stdin
+
+out
+: dump stdout
+
+inout
+: dump stdin/stdout
+
+Prefacing a stream with 'r' will dump the raw bytes: rnone, rin,
+rout, rinout.
+
 # ENVIRONMENT VARIABLES
 
 HEXLOG_LABEL_STDIN=" (0)"
@@ -57,10 +80,10 @@ HEXLOG_LABEL_STDOUT=" (1)"
 : Label attached to hexdump of the stdout stream.
 
 HEXLOG_FD_STDIN="2"
-: File descriptor to write hexdump.
+: File descriptor to write dump of the stdin stream.
 
 HEXLOG_FD_STDOUT="2"
-: File descriptor to write hexdump.
+: File descriptor to write dump of the stdout stream.
 
 # SIGNALS
 
