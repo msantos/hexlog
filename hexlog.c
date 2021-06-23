@@ -95,7 +95,7 @@ int main(int argc, char *argv[]) {
   int fdp = -1; /* capsicum: process descriptor */
   char *stream;
 
-  state_t s;
+  state_t s = {0};
   hexlog_t h[2] = {0};
 
   if (restrict_process_init() < 0)
