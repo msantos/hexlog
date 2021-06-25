@@ -34,7 +34,7 @@
 #include "restrict_process.h"
 #include "waitfor.h"
 
-#define HEXLOG_VERSION "0.2.0"
+#define HEXLOG_VERSION "0.3.0"
 
 #define COUNT(_array) (sizeof(_array) / sizeof(_array[0]))
 
@@ -225,6 +225,9 @@ int main(int argc, char *argv[]) {
    * child exit status, exit with status 0:
    *
    * https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=235871
+   *
+   * The exit status can also be retrieved using kqueue(2) with the
+   * EVFILT_PROCDESC filter.
    *
    */
   exit(0);
