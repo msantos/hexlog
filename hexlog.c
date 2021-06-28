@@ -220,21 +220,8 @@ int main(int argc, char *argv[]) {
     err(111, "event_loop");
   }
 
-#ifdef RESTRICT_PROCESS_capsicum
-  /* Since FreeBSD capsicum does not implement pdwait4(2) to get the
-   * child exit status, exit with status 0:
-   *
-   * https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=235871
-   *
-   * The exit status can also be retrieved using kqueue(2) with the
-   * EVFILT_PROCDESC filter.
-   *
-   */
-  exit(0);
-#else
-  if (waitfor(&status) < 0)
+  if (waitfor(fdp, &status) < 0)
     err(111, "waitfor");
-#endif
 
   if (WIFEXITED(status))
     exit(WEXITSTATUS(status));

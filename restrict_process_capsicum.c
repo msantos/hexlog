@@ -42,7 +42,7 @@ int restrict_process(void) {
 
   (void)cap_rights_init(&policy_read, CAP_READ, CAP_EVENT);
   (void)cap_rights_init(&policy_write, CAP_WRITE, CAP_EVENT);
-  (void)cap_rights_init(&policy_rw, CAP_READ, CAP_WRITE, CAP_EVENT);
+  (void)cap_rights_init(&policy_rw, CAP_READ, CAP_WRITE, CAP_EVENT, CAP_PDKILL);
 
   if (cap_rights_limit(STDIN_FILENO, &policy_read) < 0)
     return -1;
