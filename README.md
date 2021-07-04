@@ -85,6 +85,10 @@ HEXLOG_FD_STDIN="2"
 HEXLOG_FD_STDOUT="2"
 : File descriptor to write dump of the stdout stream.
 
+HEXLOG_TIMEOUT="0"
+: Dump any buffered data after HEXLOG_TIMEOUT seconds of inactivity
+  (0 to disable)
+
 # SIGNALS
 
 SIGUSR1
@@ -95,6 +99,9 @@ SIGUSR2
 
 SIGHUP
 : reset hexdump stdio to initial value
+
+SIGALRM
+: dump any buffered data
 
 # ALTERNATIVES
 

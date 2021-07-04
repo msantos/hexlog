@@ -60,6 +60,7 @@ typedef struct {
   int dir_initial;
   int dir_cur;
   int raw;
+  unsigned int timeout;
 } state_t;
 
 extern const char *__progname;
@@ -94,6 +95,7 @@ int main(int argc, char *argv[]) {
   int status = 0;
   int fdp = -1; /* capsicum: process descriptor */
   char *stream;
+  char *timeout;
 
   state_t s = {0};
   hexlog_t h[2] = {0};
@@ -109,6 +111,11 @@ int main(int argc, char *argv[]) {
 
   if (direction(&s, argv[1]) < 0)
     usage();
+
+  timeout = getenv("HEXLOG_TIMEOUT");
+  if (timeout != NULL) {
+    s.timeout = (unsigned)atoi(timeout);
+  }
 
   h[0].fdhex = stderr;
   stream = getenv("HEXLOG_FD_STDIN");
@@ -256,6 +263,9 @@ static int signal_init(void (*handler)(int)) {
   if (sigaction(SIGTERM, &act, NULL) < 0)
     return -1;
 
+  if (sigaction(SIGALRM, &act, NULL) < 0)
+    return -1;
+
   return 0;
 }
 
@@ -275,6 +285,9 @@ static int event_loop(state_t *s, hexlog_t h[2]) {
   rfd[2].events = POLLIN; /* read: signal fd */
 
   for (;;) {
+    if (s->timeout > 0)
+      alarm(s->timeout);
+
     if (poll(rfd, COUNT(rfd), -1) < 0) {
       if (errno == EINTR)
         continue;
@@ -329,6 +342,17 @@ static int event_loop(state_t *s, hexlog_t h[2]) {
         return 0;
       case -1:
         return -1;
+      case 2:
+        if (h[0].off > 0) {
+          (void)hexdump(h[0].fdhex, h[0].label, h[0].buf, h[0].off, s->raw);
+          h[0].off = 0;
+        }
+
+        if (h[1].off > 0) {
+          (void)hexdump(h[1].fdhex, h[1].label, h[1].buf, h[1].off, s->raw);
+          h[1].off = 0;
+        }
+        break;
       default:
         break;
       }
@@ -364,6 +388,8 @@ static int sigread(state_t *s) {
     else
       s->dir_cur |= OUT;
     break;
+  case SIGALRM:
+    return 2;
   case SIGCHLD:
     return 0;
   default:

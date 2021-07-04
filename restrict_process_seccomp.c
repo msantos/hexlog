@@ -172,6 +172,12 @@ int restrict_process(void) {
 #ifdef __NR_restart_syscall
       SC_ALLOW(restart_syscall),
 #endif
+#ifdef __NR_alarm
+      SC_ALLOW(alarm),
+#endif
+#ifdef __NR_setitimer
+      SC_ALLOW(setitimer),
+#endif
 #ifdef __NR_rt_sigreturn
       SC_ALLOW(rt_sigreturn),
 #endif
