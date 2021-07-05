@@ -34,7 +34,7 @@
 #include "restrict_process.h"
 #include "waitfor.h"
 
-#define HEXLOG_VERSION "0.3.0"
+#define HEXLOG_VERSION "0.4.0"
 
 #define COUNT(_array) (sizeof(_array) / sizeof(_array[0]))
 
@@ -73,6 +73,7 @@ static int event_loop(state_t *s, hexlog_t h[2]);
 static ssize_t hexdump(FILE *stream, const char *label, const void *data,
                        size_t size, int raw);
 static int hexlog_write(int fd, void *buf, size_t size);
+static int hexlog_flush(state_t *s, hexlog_t h[2]);
 
 static int signal_init(void (*handler)(int));
 void sighandler(int sig);
@@ -216,11 +217,7 @@ int main(int argc, char *argv[]) {
   rv = event_loop(&s, h);
   oerrno = errno;
 
-  if (h[0].off > 0)
-    (void)hexdump(h[0].fdhex, h[0].label, h[0].buf, h[0].off, s.raw);
-
-  if (h[1].off > 0)
-    (void)hexdump(h[1].fdhex, h[1].label, h[1].buf, h[1].off, s.raw);
+  (void)hexlog_flush(&s, h);
 
   if (rv < 0) {
     errno = oerrno;
@@ -343,15 +340,7 @@ static int event_loop(state_t *s, hexlog_t h[2]) {
       case -1:
         return -1;
       case 2:
-        if (h[0].off > 0) {
-          (void)hexdump(h[0].fdhex, h[0].label, h[0].buf, h[0].off, s->raw);
-          h[0].off = 0;
-        }
-
-        if (h[1].off > 0) {
-          (void)hexdump(h[1].fdhex, h[1].label, h[1].buf, h[1].off, s->raw);
-          h[1].off = 0;
-        }
+        (void)hexlog_flush(s, h);
         break;
       default:
         break;
@@ -402,6 +391,20 @@ static int sigread(state_t *s) {
   }
 
   return 1;
+}
+
+static int hexlog_flush(state_t *s, hexlog_t h[2]) {
+  if (h[0].off > 0) {
+    (void)hexdump(h[0].fdhex, h[0].label, h[0].buf, h[0].off, s->raw);
+    h[0].off = 0;
+  }
+
+  if (h[1].off > 0) {
+    (void)hexdump(h[1].fdhex, h[1].label, h[1].buf, h[1].off, s->raw);
+    h[1].off = 0;
+  }
+
+  return 0;
 }
 
 static int relay(state_t *s, hexlog_t *h) {
