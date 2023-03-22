@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, Michael Santos <michael.santos@gmail.com>
+/* Copyright (c) 2020-2023, Michael Santos <michael.santos@gmail.com>
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,14 +14,25 @@
  */
 #include "restrict_process.h"
 #ifdef RESTRICT_PROCESS_rlimit
-#pragma message "no rlimit process restrictions are enforced"
 #include <sys/resource.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <time.h>
+#include <unistd.h>
 
 int restrict_process_signal_on_supervisor_exit(void) { return 0; }
 int restrict_process_init(void) { return 0; }
 int restrict_process(void) {
   struct rlimit rl_zero = {0};
+  struct stat sb = {0};
+
+  if (fstat(STDOUT_FILENO, &sb) < 0)
+    return -1;
+
+  if (!S_ISREG(sb.st_mode)) {
+    if (setrlimit(RLIMIT_FSIZE, &rl_zero) < 0)
+      return -1;
+  }
 
   return setrlimit(RLIMIT_NPROC, &rl_zero);
 }
