@@ -1,5 +1,4 @@
-/*
- * Copyright (c) 2020-2022, Michael Santos <michael.santos@gmail.com>
+/* Copyright (c) 2020-2023, Michael Santos <michael.santos@gmail.com>
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -34,7 +33,7 @@
 #include "restrict_process.h"
 #include "waitfor.h"
 
-#define HEXLOG_VERSION "0.4.1"
+#define HEXLOG_VERSION "0.5.0"
 
 #define COUNT(_array) (sizeof(_array) / sizeof(_array[0]))
 
@@ -366,13 +365,13 @@ static int sigread(state_t *s) {
     s->dir_cur = s->dir_initial;
     break;
   case SIGUSR1:
-    if (s->dir_cur & IN)
+    if (s->dir_initial & IN)
       s->dir_cur &= ~IN;
     else
       s->dir_cur |= IN;
     break;
   case SIGUSR2:
-    if (s->dir_cur & OUT)
+    if (s->dir_initial & OUT)
       s->dir_cur &= ~OUT;
     else
       s->dir_cur |= OUT;
