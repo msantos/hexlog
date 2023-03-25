@@ -365,16 +365,10 @@ static int sigread(state_t *s) {
     s->dir_cur = s->dir_initial;
     break;
   case SIGUSR1:
-    if (s->dir_initial & IN)
-      s->dir_cur &= ~IN;
-    else
-      s->dir_cur |= IN;
+    s->dir_cur &= ~(s->dir_initial & IN);
     break;
   case SIGUSR2:
-    if (s->dir_initial & OUT)
-      s->dir_cur &= ~OUT;
-    else
-      s->dir_cur |= OUT;
+    s->dir_cur &= ~(s->dir_initial & OUT);
     break;
   case SIGALRM:
     return 2;
