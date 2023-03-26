@@ -1,6 +1,6 @@
 # SYNOPSIS
 
-hexlog *[r](in|out|inout|none)* *cmd* *...*
+hexlog [r]**in**|[r]**out**|[r]**inout**|**none** *cmd* *...*
 
 # DESCRIPTION
 
@@ -8,7 +8,7 @@ hexlog: hexdump stdin and/or stdout to stderr
 
 hexlog streams a hexdump (or optionally the raw bytes) of the standard
 I/O of a subprocess to standard error. Hexdumps can be enabled or disabled
-by sending a signal (see _SIGNALS_).
+by sending a signal (see *SIGNALS*).
 
 The hexdump code originates from:
 
@@ -33,22 +33,24 @@ abc
 
 # Build
 
-    make
+```
+make
 
-    # selecting process restrictions
-    RESTRICT_PROCESS=seccomp make
+# selecting process restrictions
+RESTRICT_PROCESS=seccomp make
 
-    #### using musl
-    RESTRICT_PROCESS=rlimit ./musl-make
+#### using musl
+RESTRICT_PROCESS=rlimit ./musl-make
 
-    ## linux seccomp sandbox: requires kernel headers
+## linux seccomp sandbox: requires kernel headers
 
-    # clone the kernel headers somewhere
-    cd /path/to/dir
-    git clone https://github.com/sabotage-linux/kernel-headers.git
+# clone the kernel headers somewhere
+cd /path/to/dir
+git clone https://github.com/sabotage-linux/kernel-headers.git
 
-    # then compile
-    MUSL_INCLUDE=/path/to/dir ./musl-make clean all
+# then compile
+MUSL_INCLUDE=/path/to/dir ./musl-make clean all
+```
 
 # OPTIONS
 
@@ -56,7 +58,7 @@ None.
 
 # ARGUMENTS
 
-none:
+none
 : do not dump stdio
 
 in
@@ -87,7 +89,7 @@ HEXLOG_FD_STDOUT="2"
 
 HEXLOG_TIMEOUT="0"
 : Dump any buffered data after HEXLOG_TIMEOUT seconds of inactivity
-  (0 to disable)
+(0 to disable)
 
 # SIGNALS
 
@@ -110,18 +112,22 @@ SIGALRM
 The general problem is duplicating stdout to stderr which can be handled
 using `tee(1)` and bash's process substitution:
 
-    tee >(cat 1>&2) | command | tee >(cat 1>&2)
+```
+tee >(cat 1>&2) | command | tee >(cat 1>&2)
+```
 
 This pipeline forks 6 processes including bash. To hexdump:
 
-    tee >(stdbuf -oL hexdump -C 1>&2) | command | tee >(stdbuf -oL hexdump -C 1>&2)
+```
+tee >(stdbuf -oL hexdump -C 1>&2) | command | tee >(stdbuf -oL hexdump -C 1>&2)
+```
 
 A real version would use a format string and include the direction
 (stdin vs stdout).
 
 And to wrap it in a script:
 
-~~~
+```
 #!/bin/bash
 
 set -o errexit
@@ -129,19 +135,19 @@ set -o nounset
 set -o pipefail
 
 tee >(stdbuf -oL hexdump -C 1>&2) | $@ | tee >(stdbuf -oL hexdump -C 1>&2)
-~~~
+```
 
 For example:
 
-~~~
+```
 ./hexlog nc -l -k 9090
-~~~
+```
 
 Note: hexdump doesn't exit and flush the buffer when stdin is closed. It
 will wait for the next full write.
 
 ## socat
 
-    socat -xv - EXEC:"command arg1",pty
-
-## awk
+```
+socat -xv - EXEC:"command arg1",pty
+```
