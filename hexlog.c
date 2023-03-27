@@ -33,7 +33,7 @@
 #include "restrict_process.h"
 #include "waitfor.h"
 
-#define HEXLOG_VERSION "0.5.0"
+#define HEXLOG_VERSION "0.5.1"
 
 #define COUNT(_array) (sizeof(_array) / sizeof(_array[0]))
 
@@ -352,6 +352,13 @@ static int event_loop(state_t *s, hexlog_t h[2]) {
   }
 }
 
+static void setdir(state_t *s, int dir) {
+  if (s->dir_initial & dir)
+    s->dir_cur &= ~dir;
+  else
+    s->dir_cur |= dir;
+}
+
 static int sigread(state_t *s) {
   ssize_t n;
   int sig;
@@ -365,10 +372,10 @@ static int sigread(state_t *s) {
     s->dir_cur = s->dir_initial;
     break;
   case SIGUSR1:
-    s->dir_cur &= ~(s->dir_initial & IN);
+    setdir(s, IN);
     break;
   case SIGUSR2:
-    s->dir_cur &= ~(s->dir_initial & OUT);
+    setdir(s, OUT);
     break;
   case SIGALRM:
     return 2;
