@@ -45,11 +45,11 @@ RESTRICT_PROCESS=rlimit ./musl-make
 ## linux seccomp sandbox: requires kernel headers
 
 # clone the kernel headers somewhere
-cd /path/to/dir
-git clone https://github.com/sabotage-linux/kernel-headers.git
+export MUSL_INCLUDE=/tmp
+git clone https://github.com/sabotage-linux/kernel-headers.git $MUSL_INCLUDE/kernel-headers
 
 # then compile
-MUSL_INCLUDE=/path/to/dir ./musl-make clean all
+MUSL_INCLUDE=/tmp ./musl-make clean all
 ```
 
 # OPTIONS
