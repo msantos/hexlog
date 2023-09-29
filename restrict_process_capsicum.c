@@ -75,8 +75,6 @@ static int fdlimit(int lowfd, cap_rights_t *policy) {
   struct dirent *de;
   int fd;
 
-  /* The opendir() function sets the close-on-exec flag for the file
-   * descriptor underlying the DIR *. */
   dp = opendir("/dev/fd");
   if (dp == NULL) {
     return fdlimit_range(lowfd, policy);
@@ -105,7 +103,7 @@ static int fdlimit(int lowfd, cap_rights_t *policy) {
     }
   }
 
-  return 0;
+  return closedir(dp);
 }
 
 static int isnum(const char *s) {
