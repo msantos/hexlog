@@ -21,10 +21,12 @@
 #include <unistd.h>
 
 int restrict_process_signal_on_supervisor_exit(void) { return 0; }
+
 int restrict_process_init(void) { return 0; }
+
 int restrict_process(void) {
   struct rlimit rl_zero = {0};
-  struct stat sb = {0};
+  struct stat sb;
 
   if (fstat(STDOUT_FILENO, &sb) < 0)
     return -1;
