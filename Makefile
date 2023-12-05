@@ -32,7 +32,7 @@ else ifeq ($(UNAME_SYS), FreeBSD)
     RESTRICT_PROCESS ?= capsicum
 endif
 
-CFLAGS += -g -Wall -fwrapv -pedantic -pie -fPIE $(HEXLOG_CFLAGS)
+CFLAGS += -g -Wall -Wextra -fwrapv -pedantic -pie -fPIE $(HEXLOG_CFLAGS)
 LDFLAGS += $(HEXLOG_LDFLAGS)
 RESTRICT_PROCESS ?= rlimit
 

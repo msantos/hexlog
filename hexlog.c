@@ -33,7 +33,7 @@
 #include "restrict_process.h"
 #include "waitfor.h"
 
-#define HEXLOG_VERSION "0.5.1"
+#define HEXLOG_VERSION "0.5.2"
 
 #define COUNT(_array) (sizeof(_array) / sizeof(_array[0]))
 
@@ -453,7 +453,7 @@ static int relay(state_t *s, hexlog_t *h) {
 
 static int hexlog_write(int fd, void *buf, size_t size) {
   ssize_t n;
-  ssize_t off = 0;
+  size_t off = 0;
 
   do {
     n = write(fd, buf, size - off);
