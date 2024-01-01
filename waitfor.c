@@ -1,4 +1,4 @@
-/* Copyright (c) 2019-2021, Michael Santos <michael.santos@gmail.com>
+/* Copyright (c) 2019-2024, Michael Santos <michael.santos@gmail.com>
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -18,13 +18,15 @@
 #ifdef RESTRICT_PROCESS_capsicum
 #include <stdlib.h>
 #include <sys/event.h>
+#include <unistd.h>
 #endif
 
 #include "waitfor.h"
 
 int waitfor(int fdp, int *status) {
 #ifdef RESTRICT_PROCESS_capsicum
-  struct kevent event;
+  struct kevent changelist;
+  struct kevent eventlist;
   int kq;
   int rv;
 
@@ -32,21 +34,27 @@ int waitfor(int fdp, int *status) {
   if (kq == -1)
     return -1;
 
-  EV_SET(&event, fdp, EVFILT_PROCDESC, EV_ADD | EV_CLEAR | EV_ONESHOT,
-         NOTE_EXIT, 0, NULL);
+  EV_SET(&changelist, fdp, EVFILT_PROCDESC, EV_ADD | EV_CLEAR, NOTE_EXIT, 0,
+         NULL);
 
-  rv = kevent(kq, &event, 1, &event, 1, NULL);
-  if (rv == -1) {
-    switch (errno) {
-    case EINTR:
-      return 0;
-    default:
-      return -1;
-    }
+  rv = kevent(kq, &changelist, 1, NULL, 0, NULL);
+  if (rv == -1 || (changelist.flags & EV_ERROR)) {
+    (void)close(kq);
+    return -1;
   }
 
-  *status = (int)event.data;
-  return 0;
+  for (;;) {
+    rv = kevent(kq, NULL, 0, &eventlist, 1, NULL);
+    if (rv < 1) {
+      if (errno == EINTR)
+        continue;
+      (void)close(kq);
+      return -1;
+    }
+
+    *status = (int)eventlist.data;
+    return close(kq);
+  }
 #else
   (void)fdp;
   for (;;) {
