@@ -94,10 +94,10 @@ HEXLOG_TIMEOUT="0"
 # SIGNALS
 
 SIGUSR1
-: enable/disable hexdump of stdin
+: stdin: activate or deactivate hexdump based on the initial settings
 
 SIGUSR2
-: enable/disable hexdump of stdout
+: stdout: activate or deactivate hexdump based on the initial settings
 
 SIGHUP
 : reset hexdump stdio to initial value

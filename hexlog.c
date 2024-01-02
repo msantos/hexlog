@@ -1,4 +1,4 @@
-/* Copyright (c) 2020-2023, Michael Santos <michael.santos@gmail.com>
+/* Copyright (c) 2020-2024, Michael Santos <michael.santos@gmail.com>
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -33,7 +33,7 @@
 #include "restrict_process.h"
 #include "waitfor.h"
 
-#define HEXLOG_VERSION "0.5.2"
+#define HEXLOG_VERSION "0.5.3"
 
 #define COUNT(_array) (sizeof(_array) / sizeof(_array[0]))
 
