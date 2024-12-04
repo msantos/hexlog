@@ -537,5 +537,5 @@ static noreturn void usage(void) {
                 "%s %s (using %s mode process restriction)\n"
                 "usage: %s <in|out|inout|none> <cmd> <...>\n",
                 __progname, HEXLOG_VERSION, RESTRICT_PROCESS, __progname);
-  exit(EXIT_FAILURE);
+  exit(2);
 }
