@@ -395,12 +395,14 @@ static int sigread(state_t *s) {
 
 static int hexlog_flush(state_t *s, hexlog_t h[2]) {
   if (h[0].off > 0) {
-    (void)hexdump(h[0].fdhex, h[0].label, h[0].buf, h[0].off, s->raw);
+    if (hexdump(h[0].fdhex, h[0].label, h[0].buf, h[0].off, s->raw) < 0)
+      return -1;
     h[0].off = 0;
   }
 
   if (h[1].off > 0) {
-    (void)hexdump(h[1].fdhex, h[1].label, h[1].buf, h[1].off, s->raw);
+    if (hexdump(h[1].fdhex, h[1].label, h[1].buf, h[1].off, s->raw) < 0)
+      return -1;
     h[1].off = 0;
   }
 
@@ -439,7 +441,8 @@ static int relay(state_t *s, hexlog_t *h) {
     size_t len = ((h->off + n) / 16) * 16;
     size_t rem = (h->off + n) % 16;
     (void)memcpy(h->buf + h->off, buf, len);
-    (void)hexdump(h->fdhex, h->label, h->buf, len, s->raw);
+    if (hexdump(h->fdhex, h->label, h->buf, len, s->raw) < 0)
+      return -1;
     if (rem > 0)
       (void)memcpy(h->buf, buf + (len - h->off), rem);
     h->off = rem;
@@ -475,13 +478,13 @@ static ssize_t hexdump(FILE *stream, const char *label, const void *data,
   size_t i, j;
 
   if (raw) {
-    /* TODO: handle errors, short writes: return value is currently ignored */
     return fwrite(data, 1, size, stream);
   }
 
   ascii[16] = '\0';
   for (i = 0; i < size; ++i) {
-    (void)fprintf(stream, "%02X ", ((const unsigned char *)data)[i]);
+    if (fprintf(stream, "%02X ", ((const unsigned char *)data)[i]) < 0)
+      return -1;
     if (((const unsigned char *)data)[i] >= ' ' &&
         ((const unsigned char *)data)[i] <= '~') {
       ascii[i % 16] = ((const unsigned char *)data)[i];
@@ -489,18 +492,23 @@ static ssize_t hexdump(FILE *stream, const char *label, const void *data,
       ascii[i % 16] = '.';
     }
     if ((i + 1) % 8 == 0 || i + 1 == size) {
-      (void)fprintf(stream, " ");
+      if (fprintf(stream, " ") < 0)
+        return -1;
       if ((i + 1) % 16 == 0) {
-        (void)fprintf(stream, "|%s|%s\n", ascii, label);
+        if (fprintf(stream, "|%s|%s\n", ascii, label) < 0)
+          return -1;
       } else if (i + 1 == size) {
         ascii[(i + 1) % 16] = '\0';
         if ((i + 1) % 16 <= 8) {
-          (void)fprintf(stream, " ");
+          if (fprintf(stream, " ") < 0)
+            return -1;
         }
         for (j = (i + 1) % 16; j < 16; ++j) {
-          (void)fprintf(stream, "   ");
+          if (fprintf(stream, "   ") < 0)
+            return -1;
         }
-        (void)fprintf(stream, "|%s|%s\n", ascii, label);
+        if (fprintf(stream, "|%s|%s\n", ascii, label) < 0)
+          return -1;
       }
     }
   }
