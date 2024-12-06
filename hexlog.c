@@ -33,7 +33,7 @@
 #include "restrict_process.h"
 #include "waitfor.h"
 
-#define HEXLOG_VERSION "0.5.3"
+#define HEXLOG_VERSION "1.0.0"
 
 #define COUNT(_array) (sizeof(_array) / sizeof(_array[0]))
 
